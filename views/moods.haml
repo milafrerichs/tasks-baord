@@ -1,0 +1,5 @@
+.mt-16
+  %div.mx-auto(class="w-2/3")
+    %h1.text-4xl.mb-8 How do you feel?
+    - @moods.each do |mood|
+      %a.block.p-8.text-center.text-2xl.bg-gray-400.rounded.mb-4(href="/new/mood/#{mood.slug}")=mood.title
