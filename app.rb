@@ -21,13 +21,18 @@ class Omni
     @omni.update
   end
 
-  def today
+  def this_week
     puts "This week id: #{this_week_id}"
-    enhance_tasks(@omni.tasks.select(context_id: this_week_id))
+    get_tasks_by_tag_id(this_week_id)
+  end
+
+  def today
+    today_tag = get_context_id_by_name("F")
+    get_tasks_by_tag_ids([this_week_id, today_tag])
   end
 
   def this_week_id
-    @omni.contexts.find(name: "This week").id
+    get_context_id_by_name("This week")
   end
 
   def find_project(project_id)
@@ -48,6 +53,10 @@ class Omni
     context
   end
 
+  def get_context_id_by_name(name)
+    @omni.contexts.find(name: name).id
+  end
+
   def get_context(context_id)
     @contexts[context_id] || find_context(context_id)
   end
@@ -55,19 +64,49 @@ class Omni
   def get_tasks_by_tag_id(id)
     puts "Context id: #{id}"
     update
-    enhance_tasks(@omni.tasks.select(context_id: id))
+    Tasks.new(enhance_tasks(@omni.contexts_tasks.select(context_id: id).map(&:task)))
+  end
+
+  def get_tasks_by_tag_ids(ids)
+    update
+    tasks = @omni.contexts_tasks
+      .select(context_id: ids[0])
+      .map(&:task)
+    t = tasks.select { |t|
+      t.contexts.all? { |c| ids.include?(c.id) }
+    }
+    Tasks.new(enhance_tasks(t))
   end
 
   def enhance_tasks(tasks)
     tasks.map do |task|
-      project = get_project(task.container_id)
+      project = task.container_id ? get_project(task.container_id) : NullItem.new
       tag = get_context(task.context_id)
-      Task.new(task.name, project, tag, task.flagged)
+      tags = task.contexts.map { |c| get_context(c.id) }
+      completed = task.completed?
+      Task.new(task.name, project, tag, tags, task.flagged, completed)
     end
   end
 end
 
-Task = Struct.new(:title, :project, :tag, :flagged, :completed) do
+class NullItem
+  def title
+    ""
+  end
+end
+
+Tasks = Struct.new(:tasks) do
+  def available
+    tasks.select { |t| not t.completed }
+  end
+  def by_tag_title(tag)
+    tasks.select { |t| t.includes_tag_title?(tag)}
+  end
+end
+Task = Struct.new(:title, :project, :tag, :tags, :flagged, :completed) do
+  def includes_tag_title?(tag)
+    tags.any? { |t| t.title == tag}
+  end
 end
 Project = Struct.new(:title, :tag)
 Context = Struct.new(:title)
@@ -110,7 +149,12 @@ get '/' do
 end
 
 get '/this-week' do
-  @tasks = omni.today
+  @tasks = omni.this_week.available
+  haml :tasks
+end
+
+get '/this-week/today' do
+  @tasks = omni.today.available
   haml :tasks
 end
 
@@ -128,7 +172,7 @@ end
 get '/moods/:slug' do |n|
   mood = moods.mood_by_slug(n)
   puts "Mood: #{mood} id: #{mood.omni_id}"
-  @tasks = omni.get_tasks_by_tag_id(mood.omni_id)
+  @tasks = omni.get_tasks_by_tag_id(mood.omni_id).available
   haml :tasks
 end
 
