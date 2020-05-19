@@ -1,0 +1,9 @@
+.mt-5.grid.grid-cols-1.gap-5.sm:grid-cols-3
+  - stats.each do |stat|
+    .bg-white.overflow-hidden.shadow.rounded-lg
+      .px-4.py-5.sm:p-6
+        %dl
+          %dt.text-sm.leading-5.font-medium.text-gray-500.truncate
+            = stat.title
+          %dd.mt-1.text-3xl.leading-9.font-semibold.text-gray-900
+            = stat.text

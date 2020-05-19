@@ -1,0 +1,11 @@
+.mt-16
+  %h1.text-4xl This week's Tasks
+
+  .mt-8.stats
+    = haml :stats, locals: { stats: @stats }
+  %h2.mt-8 Do now Tasks
+  = haml :tasks, locals: { tasks: @important.by_tag_title("Urgent")}
+  %h2.mt-8 A Tasks
+  = haml :tasks, locals: { tasks: @tasks.by_tag_title("A")}
+  %h2.mt-8 All Tasks
+  = haml :tasks, locals: { tasks: @tasks }

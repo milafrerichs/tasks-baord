@@ -1,7 +1,6 @@
-%h1 Mood Board
+%h1.text-center.text-4xl Mood Board
 
-%h2 Ready to work on the next tasks?
+.mt-8
+  = haml :callout, locals: { title: "Ready to work on the next task?", text: "", link: "/new", link_text: "Start working on it", color: "blue" }
 
-%a(href="/new")Start working on it!
-
-
+= haml :overview

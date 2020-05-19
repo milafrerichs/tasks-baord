@@ -8,6 +8,7 @@ gem "sinatra"
 gem "notion_rb"
 gem 'rubyfocus', git: 'https://github.com/milafrerichs/rubyfocus.git', branch: 'feat/multiple-contexts'
 gem "haml"
-gem "pry"
 gem "dotenv"
+gem "rdiscount"
+gem "pry"
 gem "rspec"

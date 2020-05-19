@@ -1,0 +1,5 @@
+%h1=@mood.title
+
+= markdown @mood.slug.to_sym
+
+= haml :tasks, locals: { tasks: @tasks }
