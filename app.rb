@@ -1,5 +1,9 @@
+require "net/http"
+require "json"
+
 require 'sinatra'
 require "sinatra/reloader"
+
 require 'rubyfocus'
 require "rdiscount"
 
@@ -7,6 +11,7 @@ require 'notion_rb'
 require 'dotenv/load'
 require 'pry'
 
+NOTION_URL = ENV['NOTION_URL']
 NOTION_MOOD_BOARD = ENV['NOTION_MOOD_BOARD']
 NOTION_ID = ENV['NOTION_ID']
 WEEKDAY_TAGS = {
@@ -249,8 +254,14 @@ get '/new' do
 end
 
 get '/new/mood/:slug' do |n|
-  #id = notion.record_mood(n)
-  #session[:notion_mood_id] = id
+  Thread.new {
+    response = Net::HTTP.post(URI("#{NOTION_URL}/mood/#{n}"),
+                              { }.to_json,
+                              "Content-Type" => "application/json"
+                             )
+    body = JSON.parse(response.body)
+    session[:notion_mood_id] = body[:notion_id]
+  }
   redirect to("/moods/#{n}")
 end
 
