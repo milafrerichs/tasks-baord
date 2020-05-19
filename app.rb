@@ -1,4 +1,5 @@
 require 'sinatra'
+require "sinatra/reloader"
 require 'rubyfocus'
 require "rdiscount"
 
@@ -12,6 +13,8 @@ WEEKDAY_TAGS = {
   "Fri" => "F",
   "Thu" => "Th",
   "Wed" => "W",
+  "Mo" => "M",
+  "Tue" => "Tu",
   "Sat" => "",
 }
 POMODORO_TAGS = {
@@ -176,21 +179,22 @@ class Omni
     @contexts[context_id] || find_context(context_id)
   end
 
+  def get_tasks_for_context_id(id)
+    @omni.contexts_tasks.select(context_id: id).map(&:task).reject(&:nil?)
+  end
   def get_tasks_by_tag_id(id)
     puts "Context id: #{id}"
     update
-    Tasks.new(enhance_tasks(@omni.contexts_tasks.select(context_id: id).map(&:task)))
+    Tasks.new(enhance_tasks(get_tasks_for_context_id(id)))
   end
 
   def get_tasks_by_tag_ids(ids)
     update
-    tasks = @omni.contexts_tasks
-      .select(context_id: ids[0])
-      .map(&:task)
+    tasks = get_tasks_for_context_id(ids[0])
     t = tasks.select { |t|
       context_ids = t.contexts.map { |c| c.id }
       ids.all? { |c| context_ids.include?(c)  }
-    }
+    } if tasks
     Tasks.new(enhance_tasks(t))
   end
 
