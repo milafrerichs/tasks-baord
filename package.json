@@ -1,0 +1,38 @@
+{
+  "name": "tasks-baord",
+  "version": "1.0.0",
+  "description": "My personal task board, an extension for Omnifocus.",
+  "main": "index.js",
+  "scripts": {
+    "build": "parcel build src/hillcharts.js --out-dir public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/milafrerichs/tasks-baord.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/milafrerichs/tasks-baord/issues"
+  },
+  "homepage": "https://github.com/milafrerichs/tasks-baord#readme",
+  "devDependencies": {
+    "@babel/cli": "^7.8.4",
+    "@babel/core": "^7.9.6",
+    "@babel/preset-env": "^7.9.6",
+    "d3-array": "^2.4.0",
+    "d3-axis": "^1.0.12",
+    "d3-drag": "^1.2.5",
+    "d3-scale": "^3.2.1",
+    "d3-selection": "^1.4.1",
+    "d3-shape": "^1.3.7"
+  },
+  "dependencies": {
+    "tailwindcss": "^1.4.6"
+  },
+  "babel": {
+    "presets": [
+      "@babel/preset-env"
+    ]
+  }
+}
