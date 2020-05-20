@@ -4,6 +4,9 @@ require "json"
 require 'sinatra'
 require "sinatra/reloader"
 
+require 'rom'
+require 'rom-repository'
+
 require 'rubyfocus'
 require "rdiscount"
 
@@ -29,6 +32,20 @@ POMODORO_TAGS = {
   "mteIDiVe00P" => 4,
   "d2RbzksTDsq" => 5
 }
+
+rom = ROM.container(:sql, 'sqlite://board.db') do |config|
+  config.relation(:tasks) do
+    schema(infer: true)
+    auto_struct true
+  end
+end
+
+class TaskRepo < ROM::Repository[:tasks]
+  def by_omni_id(omni_id)
+    tasks.where(omni_id: omni_id).first
+  end
+end
+task_repo = TaskRepo.new(rom)
 
 class NullItem
   def id
@@ -277,3 +294,17 @@ get '/today' do
   haml :tasks
 end
 
+get '/tasks/:id/new' do |task_id|
+  task_repo.tasks.changeset(:create, title: "", omni_id: task_id).commit
+  redirect to("/tasks/#{task_id}/progress")
+end
+get '/tasks/:id/progress' do |task_id|
+  @task = task_repo.by_omni_id(task_id)
+  haml :hillchart
+end
+post '/tasks/:id/progress' do |task_id|
+  request.body.rewind  # in case someone already read it
+  data = JSON.parse request.body.read
+  update_task = task_repo.tasks.by_pk(task_id).command(:update)
+  update_task.call(x: data["x"], y: data["y"]) if update_task
+end
