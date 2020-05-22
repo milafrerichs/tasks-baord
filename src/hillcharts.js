@@ -151,6 +151,12 @@ export default class HillChart {
     group
       .attr('xValue', d => d.x)
       .attr('yValue', d => d.y)
+      .on('mouseover', function() {
+        select(this).select('text.text').attr('visibility', 'visible')
+      })
+      .on('mouseout', function() {
+        select(this).select('text.text').attr('visibility', 'hidden')
+      })
       .call(dragIt)
 
     group
@@ -162,9 +168,11 @@ export default class HillChart {
 
     group
       .append('text')
-      .text(d => d.desc)
+      .attr('class', 'text')
+      .text(d => d.title)
       .attr('x', 10)
       .attr('y', 5)
+      .attr('visibility', 'hidden')
   }
 
   init() {
