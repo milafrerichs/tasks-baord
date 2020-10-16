@@ -1,3 +1,8 @@
+require 'rubygems'
+require 'bundler'
+
+Bundler.require
+
 require "net/http"
 require "json"
 
@@ -10,9 +15,7 @@ require 'rom-repository'
 require 'rubyfocus'
 require "rdiscount"
 
-require 'notion_rb'
 require 'dotenv/load'
-require 'pry'
 
 NOTION_URL = ENV['NOTION_URL']
 NOTION_MOOD_BOARD = ENV['NOTION_MOOD_BOARD']
