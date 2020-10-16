@@ -3,9 +3,11 @@ require "json"
 
 require 'sinatra'
 require "sinatra/reloader"
+require "sinatra/json"
 
 require 'rom'
 require 'rom-repository'
+require 'rom/transformer'
 
 require 'rubyfocus'
 require "rdiscount"
@@ -21,7 +23,7 @@ WEEKDAY_TAGS = {
   "Fri" => "F",
   "Thu" => "Th",
   "Wed" => "W",
-  "Mo" => "M",
+  "Mon" => "M",
   "Tue" => "Tu",
   "Sat" => "",
 }
@@ -33,16 +35,27 @@ POMODORO_TAGS = {
   "d2RbzksTDsq" => 5
 }
 
+class TaskMapper < ROM::Transformer
+  relation :tasks, as: :task_mapper
+
+  map do
+    deep_stringify_keys
+  end
+end
 rom = ROM.container(:sql, 'sqlite://board.db') do |config|
   config.relation(:tasks) do
     schema(infer: true)
     auto_struct true
   end
+  config.register_mapper(TaskMapper)
 end
 
 class TaskRepo < ROM::Repository[:tasks]
   def by_omni_id(omni_id)
     tasks.where(omni_id: omni_id).first
+  end
+  def by_omni_ids(omni_ids)
+    tasks.where(omni_id: omni_ids)
   end
 end
 task_repo = TaskRepo.new(rom)
@@ -108,14 +121,30 @@ class Tasks
   def each(&block)
     @tasks.each(&block)
   end
+  def to_json
+    self.to_h.to_json
+  end
 end
 Task = Struct.new(:id, :title, :project, :tag, :tags, :flagged, :completed) do
   def includes_tag_title?(tag)
     tags.any? { |t| t.title == tag}
   end
+  def to_json(opt={})
+    self.to_h.to_json
+  end
 end
-Project = Struct.new(:id, :title, :tag)
-Context = Struct.new(:id, :title)
+Project = Struct.new(:id, :title, :tag, :tasks) do
+  def to_json(opt={})
+    h = self.to_h
+    h.delete(:tasks)
+    h.to_json
+  end
+end
+Context = Struct.new(:id, :title) do
+  def to_json(opt={})
+    self.to_h.to_json
+  end
+end
 Stat = Struct.new(:title, :text)
 Mood = Struct.new(:title, :omni_id, :icon, :color) do
   def slug
@@ -174,13 +203,22 @@ class Omni
     get_context_id_by_name("This week")
   end
 
-  def find_project(project_id)
+  def get_task(task_id)
+    enhance_task(@omni.tasks.find(task_id))
+  end
+
+  def find_project(project_id, add_tasks = false)
     p = @omni.projects.find(project_id)
     project = Project.new(p.id, p.name, p.context_id)
+    tasks = p.tasks.map { |task| enhance_task(task, project) } if add_tasks
+    project.tasks = tasks
     @projects[p.id] = project
     project
   end
 
+  def get_project_and_tasks(project_id)
+    find_project(project_id, true)
+  end
   def get_project(project_id)
     @projects[project_id] || find_project(project_id)
   end
@@ -220,14 +258,15 @@ class Omni
     Tasks.new(enhance_tasks(t))
   end
 
+  def enhance_task(task, project = nil)
+    project = task.container_id ? get_project(task.container_id) : NullItem.new unless project
+    tag = get_context(task.context_id)
+    tags = task.contexts.map { |c| get_context(c.id) }
+    completed = task.completed?
+    Task.new(task.id, task.name, project, tag, tags, task.flagged, completed)
+  end
   def enhance_tasks(tasks)
-    tasks.map do |task|
-      project = task.container_id ? get_project(task.container_id) : NullItem.new
-      tag = get_context(task.context_id)
-      tags = task.contexts.map { |c| get_context(c.id) }
-      completed = task.completed?
-      Task.new(task.id, task.name, project, tag, tags, task.flagged, completed)
-    end
+    tasks.map { |task| enhance_task(task) }
   end
 end
 
@@ -294,17 +333,30 @@ get '/today' do
   haml :tasks
 end
 
+get '/project/:id' do |task_id|
+  @project = omni.get_project_and_tasks(task_id)
+  ids = @project.tasks.map(&:id)
+  @tasks = task_repo.by_omni_ids(ids).map_with(:task_mapper).to_a
+  haml :project
+end
+get '/tasks/:id' do |task_id|
+  @task = omni.get_task(task_id)
+  @hillchart_task = task_repo.by_omni_id(task_id) || task_repo.tasks.changeset(:create, title: @task.title, omni_id: task_id).commit
+  haml :task
+end
 get '/tasks/:id/new' do |task_id|
-  task_repo.tasks.changeset(:create, title: "", omni_id: task_id).commit
   redirect to("/tasks/#{task_id}/progress")
 end
 get '/tasks/:id/progress' do |task_id|
-  @task = task_repo.by_omni_id(task_id)
-  haml :hillchart
+  task = omni.get_task(task_id)
+  hillchart_task = task_repo.by_omni_id(task_id) || task_repo.tasks.changeset(:create, title: task.title, omni_id: task_id).commit
+  haml :hillchart, locals: { task: hillchart_task }
 end
 post '/tasks/:id/progress' do |task_id|
+  response = ""
   request.body.rewind  # in case someone already read it
   data = JSON.parse request.body.read
   update_task = task_repo.tasks.by_pk(task_id).command(:update)
-  update_task.call(x: data["x"], y: data["y"]) if update_task
+  response = update_task.call(x: data["x"], y: data["y"]) if update_task
+  json success: true, task_id: task_id, response: response
 end

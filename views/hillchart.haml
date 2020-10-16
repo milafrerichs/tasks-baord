@@ -2,16 +2,16 @@
   %svg#hill(style="background-color: white")
   %button(onClick="save()") Save
   :javascript
-    let task = { id: "#{@task.id}", title: "#{@task.title}" }
+    let task = { id: "#{task.id}", title: "#{task.title}" }
     let data = null;
     addLoadEvent(function() {
       let getProgress = function(d) {
         data = d;
       }
       let chart = new window.hillChart('#hill', getProgress);
-      let x = parseInt("#{@task.x || 0}");
-      let y = parseInt("#{@task.y || 0}");
-      chart.renderDots([{ color: '', desc: "#{@task.omni_id}", x: x, y: y }], true);
+      let x = parseInt("#{task.x || 0}");
+      let y = parseInt("#{task.y || 0}");
+      chart.renderDots([{ color: '', title: "#{task.title}", x: x, y: y }], true);
 
     })
     let save = async function(e) {

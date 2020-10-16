@@ -3,9 +3,21 @@
 
   .mt-8.stats
     = haml :stats, locals: { stats: @stats }
-  %h2.mt-8 Do now Tasks
-  = haml :tasks, locals: { tasks: @important.by_tag_title("Urgent")}
-  %h2.mt-8 A Tasks
-  = haml :tasks, locals: { tasks: @tasks.by_tag_title("A")}
-  %h2.mt-8 All Tasks
-  = haml :tasks, locals: { tasks: @tasks }
+  .bg-white.shadow.overflow-hidden.sm:rounded-md.mt-8
+    .bg-white.px-4.py-5.border-b.border-gray-200.sm:px-6
+      %h3.text-lg.leading-6.font-medium.text-gray-900
+        Do now
+    = haml :tasks, locals: { tasks: @important.by_tag_title("Urgent")}
+  .bg-white.shadow.overflow-hidden.sm:rounded-md.mt-8
+    .bg-white.px-4.py-5.border-b.border-gray-200.sm:px-6
+      %h3.text-lg.leading-6.font-medium.text-gray-900
+        Schedule
+    = haml :tasks, locals: { tasks: @important.by_tag_title("Not urgent")}
+  .bg-white.shadow.overflow-hidden.sm:rounded-md.mt-8
+    .bg-white.px-4.py-5.border-b.border-gray-200.sm:px-6
+      %h3.text-lg.leading-6.font-medium.text-gray-900 A Tasks
+    = haml :tasks, locals: { tasks: @tasks.by_tag_title("A")}
+  .bg-white.shadow.overflow-hidden.sm:rounded-md.mt-8
+    .bg-white.px-4.py-5.border-b.border-gray-200.sm:px-6
+      %h3.text-lg.leading-6.font-medium.text-gray-900 All Tasks
+    = haml :tasks, locals: { tasks: @tasks }
