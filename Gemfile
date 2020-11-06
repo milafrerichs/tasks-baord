@@ -14,6 +14,7 @@ gem "dotenv"
 gem "rdiscount"
 gem "pry"
 gem "rspec"
+gem "foreman"
 
 
 gem "rom"

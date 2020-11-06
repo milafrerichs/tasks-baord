@@ -12,9 +12,9 @@ require 'rom/transformer'
 require 'rubyfocus'
 require "rdiscount"
 
-require 'notion_rb'
 require 'dotenv/load'
-require 'pry'
+
+require_relative 'omnifocus'
 
 NOTION_URL = ENV['NOTION_URL']
 NOTION_MOOD_BOARD = ENV['NOTION_MOOD_BOARD']
@@ -88,19 +88,44 @@ class Tasks
   def initialize(tasks)
     @tasks = tasks
   end
-  def available
-    @tasks.select { |t| not t.completed }
+
+  def tasks
+    @tasks ||= []
   end
+
+  def available
+    actionable_tasks
+  end
+
   def available!
     @tasks = available
     self
   end
+
+  def actionable_tasks
+    next_tasks.select{ |t| !t.deferred? }
+  end
+
+	# A list of all tasks that are not blocked.
+	def next_tasks
+		incomplete_tasks.select{ |t| !t.blocked? }
+	end
+
+	# A list of all tasks that aren't complete
+	def incomplete_tasks
+    tasks.select{ |t| !t.completed? }
+	end
+
   def by_tag_title(tag)
     @tasks.select { |t| t.includes_tag_title?(tag)}
   end
   def by_tag_title!(tag)
     @tasks = by_tag_title(tag)
     self
+  end
+  def time
+    #@tasks.reduce { |s, t| s + t.estimatedMinutes }
+    0
   end
   def pomodoros
     @tasks.reduce(0) do |sum, task|
@@ -125,12 +150,31 @@ class Tasks
     self.to_h.to_json
   end
 end
-Task = Struct.new(:id, :title, :project, :tag, :tags, :flagged, :completed) do
+class Task < Rubyfocus::Task
+
+  attr_accessor :id, :task, :title, :project, :tag, :tags
+
+  def initialize(task, project, tag, tags)
+    self.task = task
+    task.instance_variables.each do |ivar|
+      next if ivar == :"@document"
+      setter = ivar.to_s.gsub(/^@/,"") + "="
+      self.send(setter, task.instance_variable_get(ivar))	if self.respond_to?(setter)
+    end
+    @title = task.name
+    @tags = tags
+    @tag = tag
+    @project = project
+  end
   def includes_tag_title?(tag)
     tags.any? { |t| t.title == tag}
   end
   def to_json(opt={})
     self.to_h.to_json
+  end
+
+  def method_missing(m, *args, &block)
+    task.send(m, *args, &block)
   end
 end
 Project = Struct.new(:id, :title, :tag, :tasks) do
@@ -262,8 +306,7 @@ class Omni
     project = task.container_id ? get_project(task.container_id) : NullItem.new unless project
     tag = get_context(task.context_id)
     tags = task.contexts.map { |c| get_context(c.id) }
-    completed = task.completed?
-    Task.new(task.id, task.name, project, tag, tags, task.flagged, completed)
+    Task.new(task, project, tag, tags) #, task.flagged, completed)
   end
   def enhance_tasks(tasks)
     tasks.map { |task| enhance_task(task) }
@@ -277,7 +320,7 @@ enable :sessions
 get '/' do
   @tasks = omni.today.available!
   @important = Tasks.new(@tasks.tasks).by_tag_title!("Important")
-  @stats = [Stat.new("# tasks", @tasks.size), Stat.new("Pomodoros", @tasks.pomodoros)]
+  @stats = [Stat.new("# tasks", @tasks.size), Stat.new("Pomodoros", @tasks.time )]
   haml :index
 end
 
@@ -358,5 +401,11 @@ post '/tasks/:id/progress' do |task_id|
   data = JSON.parse request.body.read
   update_task = task_repo.tasks.by_pk(task_id).command(:update)
   response = update_task.call(x: data["x"], y: data["y"]) if update_task
+  json success: true, task_id: task_id, response: response
+end
+post '/tasks/:id/complete' do |task_id|
+  response = ""
+  request.body.rewind  # in case someone already read it
+  complete_task(task_id)
   json success: true, task_id: task_id, response: response
 end
